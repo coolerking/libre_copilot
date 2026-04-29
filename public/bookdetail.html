@@ -1,81 +1,168 @@
 <!DOCTYPE html>
 <!--
-	サンプルシステム2 書籍管理システムモックアップ
-	詳細画面
+	書籍管理システム - 詳細画面（動的版）
+	Vue.js + Express API + Google Books API
 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" type="text/css" href="css/booklist.css" >
 <link rel="stylesheet" type="text/css" href="css/bookdetail.css" >
-
+<!-- vue.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
 <title>書籍管理システム</title>
 </head>
 
 <body>
 
-<div id="header">
-	<h1>書籍管理システム</h1>
+<div id="app">
+	<div id="header">
+		<h1>書籍管理システム</h1>
+	</div>
+
+	<div id="main">
+
+		<!-- ローディング表示 -->
+		<div v-if="loading" style="text-align: center; padding: 20px;">
+			<p>📖 読み込み中...</p>
+		</div>
+
+		<!-- エラー表示 -->
+		<div v-if="error && !loading" style="background-color: #ffcccc; border: 1px solid #ff0000; padding: 10px; margin-bottom: 10px; color: #ff0000;">
+			<p>❌ エラーが発生しました: {{ error }}</p>
+			<p><a href="/booklist.html">📖 一覧画面に戻る</a></p>
+		</div>
+
+		<!-- 詳細情報 -->
+		<fieldset id="detail" v-if="!loading && !error && book">
+			<legend>{{ book.id }}-{{ book.branch }}</legend>
+
+			<p>
+				<span class="cap">タイトル</span>
+				<span class="detailtext">{{ book.title }}</span>
+			</p>
+
+			<p>
+				<span class="cap">サブタイトル</span>
+				<span class="detailtext">{{ book.subtitle }}</span>
+			</p>
+
+			<p>
+				<span class="cap">著者</span>
+				<span class="detailtext">{{ book.writer }}</span>
+			</p>
+
+			<p>
+				<span class="cap">出版</span>
+				<span class="detailtext">{{ book.print }}</span>
+			</p>
+
+			<p>
+				<span class="cap">登録日</span>
+				<span class="detailtext">{{ book.recorddate }}</span>
+			</p>
+
+			<p>
+				<span class="cap">購入方法</span>
+				<span class="detailtext">{{ book.buy }}</span>
+			</p>
+
+			<p>
+				<span class="cap">価格</span>
+				<span class="detailtext">¥{{ book.price }}</span>
+			</p>
+
+			<!-- サムネイル画像 -->
+			<p>
+				<span class="detailtext">
+					<img 
+						:src="book.thumbnailUrl" 
+						:alt="book.title"
+						width="200"
+						@error="handleImageError"
+					>
+				</span>
+			</p>
+
+		</fieldset>
+
+	</div>
 </div>
 
-<div id="main">
+<script>
+new Vue({
+	el: '#app',
+	data: {
+		book: null,
+		loading: true,
+		error: null,
+		bookId: null,
+		bookBranch: null
+	},
+	methods: {
+		/**
+		 * URL パラメータから ID と branch を取得
+		 */
+		getUrlParams() {
+			const params = new URLSearchParams(window.location.search);
+			this.bookId = params.get('id');
+			this.bookBranch = params.get('branch');
 
-<fieldset id="detail">
-<legend>4838-0</legend>
-<p>
-<span class="cap">タイトル</span>
-<span class="detailtext">仮説思考</span>
-</p>
+			if (!this.bookId || !this.bookBranch) {
+				this.error = 'URLパラメータが不正です（id と branch が必須）';
+				this.loading = false;
+				return false;
+			}
+			return true;
+		},
 
-<p>
-<span class="cap">サブタイトル</span>
-<span class="detailtext">BCG流問題発見・解決の発想法
-</span>
-</p>
+		/**
+		 * 詳細データを取得
+		 */
+		async fetchBookDetail() {
+			try {
+				this.loading = true;
+				this.error = null;
 
-<p>
-<span class="cap">著者</span>
-<span class="detailtext">内田　和成</span>
-</p>
+				const url = `/api/books/${this.bookId}/${this.bookBranch}`;
+				const response = await fetch(url);
 
-<p>
-<span class="cap">出版</span>
-<span class="detailtext">東洋経済新報社</span>
-</p>
+				if (!response.ok) {
+					if (response.status === 404) {
+						throw new Error('書籍が見つかりません');
+					}
+					throw new Error(`HTTP Error: ${response.status}`);
+				}
 
-<p>
-<span class="cap">登録日</span>
-<span class="detailtext">2009/7/15</span>
-</p>
+				const data = await response.json();
+				this.book = data;
 
-<p>
-<span class="cap">要望部署</span>
-<span class="detailtext">第1製造部</span>
-</p>
+				console.log(`✅ Book detail loaded:`, this.book);
+			} catch (err) {
+				console.error('❌ fetchBookDetail エラー:', err);
+				this.error = err.message || 'データ読み込みエラーが発生しました';
+			} finally {
+				this.loading = false;
+			}
+		},
 
-<p>
-<span class="cap">要望者</span>
-<span class="detailtext">佐久間　健介</span>
-</p>
+		/**
+		 * 画像読み込みエラーハンドラ
+		 */
+		handleImageError() {
+			console.warn('⚠️  画像読み込みエラー');
+			this.book.thumbnailUrl = '/image/20200501_noimage.png';
+		}
+	},
+	mounted() {
+		console.log('🚀 Detail page Vue app mounted');
+		
+		if (this.getUrlParams()) {
+			this.fetchBookDetail();
+		}
+	}
+});
+</script>
 
-<p>
-<span class="cap">購入方法</span>
-<span class="detailtext">紀伊国屋</span>
-</p>
-
-<p>
-<span class="cap">価格</span>
-<span class="detailtext">\1680</span>
-</p>
-
-</fieldset>
-
-<p>
-<span class="detailtext"><img src="http://books.google.com/books/content?id=FTgtz2WPFYUC&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api" width="200"></span>
-</p>
-
-<img >
-
-</div>
 </body>
 </html>

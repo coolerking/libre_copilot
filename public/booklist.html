@@ -1,271 +1,195 @@
 <!DOCTYPE html>
 <!--
-	サンプルシステム2 書籍管理システムモックアップ
-	一覧画面
+	書籍管理システム - 一覧画面（動的版）
+	Vue.js + Express API
 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" type="text/css" href="css/booklist.css">
-<!-- vue.js 最新版のロード -->
-<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-
+<!-- vue.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
 <title>書籍管理システム</title>
 </head>
 
 <body>
 
-<div id="header">
-	<h1>書籍管理システム</h1>
-</div>
+<div id="app">
+	<div id="header">
+		<h1>書籍管理システム</h1>
+	</div>
 
-<div id="main">
+	<div id="main">
 
-<fieldset id="list">
-<legend>一覧</legend>
-<div id="total_count">
-<p>該当件数　121件</p>
-</div>
-<span class="page"><a href="">01</a></span>
-<span class="page"><a href="">02</a></span>
-<span class="page"><a class="no-link">03</a></span>
-<span class="page"><a href="">04</a></span>
-<span class="page"><a href="">05</a></span>
-<span class="page"><a href="">06</a></span>
-<span class="page"><a href="">07</a></span>
-<span class="page"><a href="">08</a></span>
-<span class="page"><a href="">09</a></span>
-<span class="page"><a href="">10</a></span>
-<span class="page"><a href="">11</a></span>
-<span class="page"><a href="">12</a></span>
-<span class="page"><a href="">13</a></span>
+		<fieldset id="list">
+			<legend>一覧</legend>
+			
+			<!-- ローディング表示 -->
+			<div v-if="loading" style="text-align: center; padding: 20px;">
+				<p>📖 読み込み中...</p>
+			</div>
 
-<table border="1" style="clear:both;">
+			<!-- エラー表示 -->
+			<div v-if="error" style="background-color: #ffcccc; border: 1px solid #ff0000; padding: 10px; margin-bottom: 10px; color: #ff0000;">
+				<p>❌ エラーが発生しました: {{ error }}</p>
+			</div>
 
-<thead>
-<tr>
-<th>No</th>
-<th>タイトル</th>
-<th>サブタイトル</th>
-<th>著者</th>
-<th>出版</th>
-<th>登録日</th>
-<th>要望部署</th>
-<th>要望者</th>
-<th>購入方法</th>
-<th>価格</th>
-</tr>
-</thead>
+			<!-- 件数表示 -->
+			<div id="total_count" v-if="!loading && !error">
+				<p>該当件数　{{ total }}件</p>
+			</div>
 
-<tbody>
-<tr>
-<td>4838-0</td>
-<td><a href="bookdetail.html">仮説思考</a></td>
-<td>BCG流問題発見・解決の発想法</td>
-<td>内田　和成</td>
-<td>東洋経済新報社</td>
-<td>2009/7/15</td>
-<td>第1製造部</td>
-<td>佐久間　健介</td>
-<td>紀伊国屋</td>
-<td>\1680</td>
-</tr>
+			<!-- ページネーション（上） -->
+			<div v-if="!loading && !error && totalPages > 0">
+				<span 
+					v-for="pageNum in totalPages" 
+					:key="pageNum"
+					class="page"
+				>
+					<a 
+						v-if="pageNum !== currentPage"
+						href="#"
+						@click.prevent="changePage(pageNum)"
+					>{{ String(pageNum).padStart(2, '0') }}</a>
+					<a 
+						v-else
+						class="no-link"
+					>{{ String(pageNum).padStart(2, '0') }}</a>
+				</span>
+			</div>
 
+			<!-- テーブル -->
+			<table border="1" style="clear:both;" v-if="!loading && !error">
+				<thead>
+					<tr>
+						<th>No</th>
+						<th>タイトル</th>
+						<th>サブタイトル</th>
+						<th>著者</th>
+						<th>出版</th>
+						<th>登録日</th>
+						<th>要望部署</th>
+						<th>要望者</th>
+						<th>購入方法</th>
+						<th>価格</th>
+					</tr>
+				</thead>
 
-<tr>
-<td>4952-0</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
+				<tbody>
+					<tr v-for="(book, index) in books" :key="index">
+						<td>{{ book.id }}-{{ book.branch }}</td>
+						<td>
+							<a 
+								href="#"
+								@click.prevent="openDetail(book.id, book.branch)"
+								style="cursor: pointer; color: #0066cc; text-decoration: underline;"
+							>{{ book.title }}</a>
+						</td>
+						<td>{{ book.subtitle }}</td>
+						<td>{{ book.writer }}</td>
+						<td>{{ book.print }}</td>
+						<td>{{ book.recorddate }}</td>
+						<td>-</td>
+						<td>-</td>
+						<td>{{ book.buy }}</td>
+						<td>¥{{ book.price }}</td>
+					</tr>
+				</tbody>
+			</table>
 
+			<!-- ページネーション（下） -->
+			<div v-if="!loading && !error && totalPages > 0">
+				<span 
+					v-for="pageNum in totalPages" 
+					:key="pageNum"
+					class="page"
+				>
+					<a 
+						v-if="pageNum !== currentPage"
+						href="#"
+						@click.prevent="changePage(pageNum)"
+					>{{ String(pageNum).padStart(2, '0') }}</a>
+					<a 
+						v-else
+						class="no-link"
+					>{{ String(pageNum).padStart(2, '0') }}</a>
+				</span>
+			</div>
 
-<tr>
-<td>4952-1</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
+		</fieldset>
 
+	</div>
 
-<tr>
-<td>4952-3</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-4</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-5</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-6</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-7</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-8</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-
-
-<tr>
-<td>4952-9</td>
-<td><a href="bookdetail.html">カード関連ビジネスの現状と
-　　　　　　　　　　　　　将来展望2011
-（CD-ROM付）</a></td>
-<td>～普及進む国内ICｶｰﾄﾞ市場。既存
-ｱﾌﾟﾘｹｰｼｮﾝの現状と今後の市場予測、
-及びNFC/ﾓﾊﾞｲﾙFeliCa関連動向を
-徹底調査～</td>
-<td>田中　一志</td>
-<td>富士キメラ総研</td>
-<td>2011/9/27</td>
-<td>第2営業部</td>
-<td>細川　貴文</td>
-<td>富士キメラ総研</td>
-<td>\112350</td>
-</tr>
-</tbody>
-
-</table> 
-
-<span class="page"><a href="">01</a></span>
-<span class="page"><a href="">02</a></span>
-<span class="page"><a class="no-link">03</a></span>
-<span class="page"><a href="">04</a></span>
-<span class="page"><a href="">05</a></span>
-<span class="page"><a href="">06</a></span>
-<span class="page"><a href="">07</a></span>
-<span class="page"><a href="">08</a></span>
-<span class="page"><a href="">09</a></span>
-<span class="page"><a href="">10</a></span>
-<span class="page"><a href="">11</a></span>
-<span class="page"><a href="">12</a></span>
-<span class="page"><a href="">13</a></span>
-
-</fieldset>
-
-
+	<p id="gotop"><a href="#header">トップへ</a></p>
 
 </div>
 
-<p id="gotop"><a href="#header">トップへ</a></p>
+<script>
+new Vue({
+	el: '#app',
+	data: {
+		currentPage: 1,
+		pageSize: 10,
+		books: [],
+		total: 0,
+		totalPages: 0,
+		loading: true,
+		error: null
+	},
+	methods: {
+		/**
+		 * 指定ページの書籍一覧を取得
+		 */
+		async fetchBooks(page) {
+			try {
+				this.loading = true;
+				this.error = null;
 
-</body>
-</html>
+				const response = await fetch(`/api/books?page=${page}&pageSize=${this.pageSize}`);
+				
+				if (!response.ok) {
+					throw new Error(`HTTP Error: ${response.status}`);
+				}
+
+				const data = await response.json();
+				
+				this.books = data.books || [];
+				this.total = data.total || 0;
+				this.totalPages = data.totalPages || 0;
+				this.currentPage = page;
+
+				// ページトップにスクロール
+				document.querySelector('#header').scrollIntoView({ behavior: 'smooth' });
+
+				console.log(`✅ Page ${page} loaded. Books: ${this.books.length}`);
+			} catch (err) {
+				console.error('❌ fetchBooks エラー:', err);
+				this.error = err.message || 'データ読み込みエラーが発生しました';
+			} finally {
+				this.loading = false;
+			}
+		},
+
+		/**
+		 * ページ変更
+		 */
+		changePage(pageNum) {
+			if (pageNum !== this.currentPage && pageNum >= 1 && pageNum <= this.totalPages) {
+				this.fetchBooks(pageNum);
+			}
+		},
+
+		/**
+		 * 詳細画面を新タブで開く
+		 */
+		openDetail(id, branch) {
+			const url = `/bookdetail.html?id=${id}&branch=${branch}`;
+			window.open(url, '_blank');
+		}
+	},
+	mounted() {
+		console.log('🚀 Vue app mounted');
+		this.fetchBooks(1);
+	}
+});
+</script>
