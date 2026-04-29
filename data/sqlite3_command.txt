@@ -1,0 +1,25 @@
+/* sqlite3 booklist.sqlite3 */
+.mode csv -- chagne csv mode
+
+/* import orders */
+.import orders.csv orders -- import orders.csv to orders table
+.schema orders -- show orders table schema
+create index ordersindex on orders(id, branch);
+
+/* import books */
+.import books.csv books -- import books.csv to books table
+.schema books -- show books table schema
+create index booksindex on books(isbn);
+
+/* import employees */
+.import employees.csv employees -- import employees.csv to employees table
+.schema employees -- show employees table schema
+create index employeesindex on employees(emp_no);
+
+/* show data contents */
+select count(*) from orders;
+select count(*) from books;
+select count(*) from employees;
+select count(*) from orders, books, employees where orders.isbn = books.isbn and orders.emp_no = employees.emp_no;
+
+.exit

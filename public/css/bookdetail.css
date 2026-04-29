@@ -1,0 +1,12 @@
+.cap {
+	border-left: 5px solid #000;
+	font-size: 18px;
+	padding-left: 10px;
+	margin-left: 10px;
+}
+
+.detailtext {
+	border-bottom: 2px dotted #6c6c6c;
+	font-size: 18px;
+	margin-left: 25px;
+}
